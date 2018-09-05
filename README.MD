@@ -17,3 +17,7 @@ this package is not available now, the reason is here https://github.com/glslify
       }
     }
     ```
+
+## TODO
+- [ ] publish to npm if glslify is fixed
+- [ ] use JS to implement a lint to replace `glslangValidator`
