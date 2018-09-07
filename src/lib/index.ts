@@ -77,7 +77,7 @@ export const lint = (filename:string, src:string, stage?:ShaderStage) => new Pro
     } else {
       errors = getErrors(filename, src, errors);
       if (errors) {
-        reject(errors);
+        reject(new Error(errors));
       } else {
         reject(new Error(ERR_NO_OUTPUT));
       }
@@ -99,7 +99,7 @@ export const lintSync = (filename:string, src:string, stage?:ShaderStage) => {
   }
   if (status !== 0) {
     if (stdout) {
-      throw getErrors(filename, src, stdout.toString());
+      throw new Error(getErrors(filename, src, stdout.toString()));
     } else {
       throw new Error(ERR_NO_OUTPUT);
     }
