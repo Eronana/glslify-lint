@@ -11,13 +11,13 @@ const glslifyOpts = {
 describe('glslify-lint passed', () => {
   it('should return shader source with good vert', () => {
     const file = './glsl/good.vert';
-    const src:string = glslify(file, glslifyOpts);
+    const src:string = glslify(file, null, glslifyOpts);
     assert.isTrue(REG_GLSIIFYED.test(src));
   });
 
   it('should return shader source with good frag', () => {
     const file = './glsl/good.frag';
-    const src:string = glslify(file, glslifyOpts);
+    const src:string = glslify(file, null, glslifyOpts);
     assert.isTrue(REG_GLSIIFYED.test(src));
   });
 });

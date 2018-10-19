@@ -13,25 +13,35 @@ const shaderStages =
   'comp',
 );
 
+const DEFAULT_STAGE = 'frag';
+const isVert = (s:string) => /(\{|\s)gl_Position\s*=/.test(s);
+const isFrag = (s:string) => /(\{|\s)(gl_FragColor|gl_FragData)\s*=/.test(s);
+
 export type ShaderStage = typeof shaderStages[0];
 
-function getShaderStage (filename:string, stage?:ShaderStage) {
-  if (stage) {
-    if (!shaderStages.includes(stage)) {
-      throw new Error(`invalid stage: ${stage}`);
-    }
+function getShaderStage (src:string, filename?:string, stage?:ShaderStage) {
+  if (stage && (shaderStages.includes(stage))) {
     return stage;
-  } else {
-    const ext = extname(filename).substr(1) as ShaderStage;
-    if (!shaderStages.includes(ext)) {
-      throw new Error(`Cannot recognize stage from filename: ${filename}`);
-    }
-    return ext;
   }
+  if (filename) {
+    const ext = extname(filename).substr(1) as ShaderStage;
+    if (shaderStages.includes(ext)) {
+      return ext;
+    }
+  }
+  if (isVert(src)) {
+    return 'vert';
+  }
+  if (isFrag(src)) {
+    return 'frag';
+  }
+  return DEFAULT_STAGE;
 }
+
 const ERR_NO_OUTPUT = 'exit code is not zero, and no output';
 const ERROR_REGEX = /^(.*?): (\d+):(\d+): /;
 const CODE_SNIPPET_RANGE = 2;
+
 function getCodeSnippet (srcs:string[], line:number) {
   const padLen = (line + 1 + CODE_SNIPPET_RANGE).toString().length;
   const ss:string[] = [];
@@ -44,7 +54,8 @@ function getCodeSnippet (srcs:string[], line:number) {
   }
   return ss.join('\n');
 }
-function getErrors (filename:string, src:string, errors:string) {
+
+function getErrors (src:string, errors:string, filename?:string) {
   const srcs = src.split('\n');
   return errors
     .replace(/^\s*stdin\s*/, '')
@@ -55,27 +66,22 @@ function getErrors (filename:string, src:string, errors:string) {
       if (!m) {
         return s;
       }
-      return s.replace(ERROR_REGEX, `${chalk.bgRed.white('$1')}: ${filename}[$2, $3]: `)
+      return s.replace(ERROR_REGEX, `${chalk.bgRed.white('$1')}: ${filename || '{snippet}'}[$2, $3]: `)
         + '\n' + getCodeSnippet(srcs, parseInt(m[3]));
 
     })
     .join('\n');
 }
 
-export const lint = (filename:string, src:string, stage?:ShaderStage) => new Promise<void>((resolve, reject) => {
-  try {
-    stage = getShaderStage(filename, stage);
-  } catch (e) {
-    return reject(e);
-  }
+export const lint = (src:string, filename?:string, stage?:ShaderStage) => new Promise<void>((resolve, reject) => {
   let errors = '';
-  const proc = spawn('glslangValidator', ['--stdin', '-S', stage], {
+  const proc = spawn('glslangValidator', ['--stdin', '-S', getShaderStage(src, filename, stage)], {
     stdio: ['pipe', 'pipe', 'ignore'],
   }).on('exit', code => {
     if (code === 0) {
       resolve();
     } else {
-      errors = getErrors(filename, src, errors);
+      errors = getErrors(src, errors, filename);
       if (errors) {
         reject(new Error(errors));
       } else {
@@ -88,9 +94,8 @@ export const lint = (filename:string, src:string, stage?:ShaderStage) => new Pro
   proc.stdin.end();
 });
 
-export const lintSync = (filename:string, src:string, stage?:ShaderStage) => {
-  stage = getShaderStage(filename, stage);
-  const {status, error, stdout } = spawnSync('glslangValidator', ['--stdin', '-S', stage], {
+export const lintSync = (src:string, filename?:string, stage?:ShaderStage) => {
+  const {status, error, stdout } = spawnSync('glslangValidator', ['--stdin', '-S', getShaderStage(src, filename, stage)], {
     input: src,
     stdio: ['pipe', 'pipe', 'ignore'],
   });
@@ -99,7 +104,7 @@ export const lintSync = (filename:string, src:string, stage?:ShaderStage) => {
   }
   if (status !== 0) {
     if (stdout) {
-      throw new Error(getErrors(filename, src, stdout.toString()));
+      throw new Error(getErrors(src, stdout.toString(), filename));
     } else {
       throw new Error(ERR_NO_OUTPUT);
     }

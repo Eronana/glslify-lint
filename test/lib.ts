@@ -5,8 +5,8 @@ import { join } from 'path';
 use(require('chai-as-promised'));
 
 const readFile = (filename:string) => [
-  filename,
   fs.readFileSync(join(__dirname, 'glsl/', filename)).toString(),
+  filename,
 ] as [string, string];
 
 describe('lint', () => {
