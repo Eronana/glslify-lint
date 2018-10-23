@@ -1,5 +1,5 @@
 import { spawn, spawnSync } from 'child_process';
-import { extname } from 'path';
+import { extname, join } from 'path';
 import chalk from 'chalk';
 
 const shaderStages =
@@ -73,9 +73,22 @@ function getErrors (src:string, errors:string, filename?:string) {
     .join('\n');
 }
 
+function glslangValidator () : string {
+  const binDir = join(__dirname, '..', '..', 'bin');
+
+  switch (process.platform) {
+    case 'win32': return join(binDir, 'glslangValidator-win32.exe');
+    case 'linux': return join(binDir, 'glslangValidator-linux');
+    case 'darwin': return join(binDir, 'glslangValidator-darwin');
+
+    default:
+      throw new Error('Unsupported platform: ' + process.platform);
+  }
+};
+
 export const lint = (src:string, filename?:string, stage?:ShaderStage) => new Promise<void>((resolve, reject) => {
   let errors = '';
-  const proc = spawn('glslangValidator', ['--stdin', '-S', getShaderStage(src, filename, stage)], {
+  const proc = spawn(glslangValidator(), ['--stdin', '-S', getShaderStage(src, filename, stage)], {
     stdio: ['pipe', 'pipe', 'ignore'],
   }).on('exit', code => {
     if (code === 0) {
@@ -95,7 +108,7 @@ export const lint = (src:string, filename?:string, stage?:ShaderStage) => new Pr
 });
 
 export const lintSync = (src:string, filename?:string, stage?:ShaderStage) => {
-  const {status, error, stdout } = spawnSync('glslangValidator', ['--stdin', '-S', getShaderStage(src, filename, stage)], {
+  const {status, error, stdout } = spawnSync(glslangValidator(), ['--stdin', '-S', getShaderStage(src, filename, stage)], {
     input: src,
     stdio: ['pipe', 'pipe', 'ignore'],
   });
